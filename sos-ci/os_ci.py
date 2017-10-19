@@ -56,7 +56,7 @@ def _is_my_ci_master(event):
     if (event.get('type', 'nill') == 'comment-added' and
             'Verified+1' in event['comment'] and
             project_name == event['change']['project'] and
-            event['author']['username'] == 'jenkins' and
+            event['author']['username'] == 'zuul' and
             event['change']['branch'] == 'master'):
         logger.info('Detected valid event: %s', event)
         return True
