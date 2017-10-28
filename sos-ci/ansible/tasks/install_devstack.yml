@@ -1,42 +1,31 @@
 - hosts: devstack_instances
   tasks:
 
-  - name: Pause since wait_for doesn't work
-    pause:
-      minutes: 2
-
-  # - name: Wait for automatic updates
-  #   become: yes
-  #   wait_for: path=/var/lib/dpkg/lock state=absent
-
-  - name: update cache
-    sudo: yes
-    apt: update_cache=yes
-
-  - name: install pkgs
-    sudo: yes
-    apt: pkg={{ item }} state=present
-    with_items:
-      - git
-      - vim
-
   - name: clone devstack
     sudo: no
     git: repo=https://github.com/openstack-dev/devstack dest=~/devstack
 
   - name: send over local.conf
     sudo: no
-    template: src=../../templates/localconf.base dest=/home/ubuntu/devstack/local.conf
+    template: src=../../templates/localconf.base dest=/home/ci/devstack/local.conf
 
   - name: modify cinder_branch
-    lineinfile: dest=/home/ubuntu/devstack/local.conf regexp=^CINDER_BRANCH= line=CINDER_BRANCH={{ patchset_ref }}
+    lineinfile: dest=/home/ci/devstack/local.conf regexp=^CINDER_BRANCH= line=CINDER_BRANCH={{ patchset_ref }}
     register: git_sha
+
+  - name: make sure that the /etc/cinder directory exists
+    sudo: yes
+    file: path=/etc/cinder state=directory
+
+  - name: copy nfs_shares
+    sudo: yes
+    template: src=../../templates/nfs_shares dest=/etc/cinder/
 
   - name: run stack.sh
     sudo: no
-    shell: cd /home/ubuntu/devstack; ./stack.sh 2>&1 > /tmp/stack.sh.log.out
+    shell: cd /home/ci/devstack; ./stack.sh 2>&1 > /tmp/stack.sh.log.out
     register: stack_result
-    ignore_errors: true
+    ignore_errors: yes
 
   - name: Fetch stack.sh.log.out
     fetch: src=/tmp/stack.sh.log.out dest={{ results_dir }}/stack.sh.log.out flat=yes validate_md5=no
@@ -44,3 +33,4 @@
   - name: Fail the stack.sh task
     fail: msg="Failed to complete stack.sh"
     when: stack_result|failed
+
